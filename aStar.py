@@ -4,19 +4,27 @@ from colors import *
 import pygame
 from time import sleep
 import threading
-
-
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
 
 class Finder:
-    def __init__(self, grid):
+    def __init__(self, grid, path=None, waypoints = None):
         self.openSet = []# List of explorable nodes
-        self.closedSet = []# List of nodes explored allready
+        self.closedSet = []# List of nodes explored already
         self.grid = grid
+        self.path = path
+        self.waypoints = waypoints
 
     def isTargetNode(self, nodeA, nodeB):
         if nodeA.x == nodeB.x and nodeA.y == nodeB.y:
             return True
         return False
+
+    def showPath(self):
+        for node in self.path:
+            print(f"{node.getCoords()} ->", end=" ")
+        print("End")
 
     def getLowerCostNode(self, list):
         current = list[0]
@@ -30,7 +38,28 @@ class Finder:
         self.closedSet.clear()
         self.grid.cleanGrid()
 
-    def findPath(self):
+    def drawLine(self, screen, startNode):
+        norm_path = []
+        norm_path.append((startNode.x + (int(startNode.blocksize / 2)), startNode.y + (int(startNode.blocksize / 2)) ))
+        for node in self.path:
+            cx = node.x + (int(node.blocksize / 2))
+            cy = node.y + (int(node.blocksize / 2))
+            norm_path.append((cx, cy))
+        # pygame.draw.line(screen, WHITE, (cx_start, cy_start ), (cx_end, cy_end), 5)
+        pygame.draw.lines(screen, WHITE, False, norm_path, 5)
+
+        pygame.display.flip()
+
+    def getWaypoints(self):
+        waypoints = []
+        # for node in self.path:
+        #     waypoint = {"x": node.x, "y": node.y}
+        #     waypoints.append(waypoint)
+        for node in self.path:
+            waypoints.append((node.x, node.y))
+        return waypoints
+
+    def findPath(self, animate=False):
         while self.openSet:
             #print(f"OPEN SET = [{len(openSet)}]")
             currentNode = self.getLowerCostNode(self.openSet) #Node with lowest fCost
@@ -39,16 +68,17 @@ class Finder:
             self.closedSet.append(currentNode)
 
             if self.isTargetNode(currentNode, self.grid.endNode):
-                self.grid.createPath(self.grid.startNode, self.grid.endNode)
-                print("GREAT SUCCESS")
+                self.path = self.grid.createPath(self.grid.startNode, self.grid.endNode)
+                self.waypoints =self.getWaypoints()
+                self.showPath()
                 return
-            
+
             neighbours = self.grid.getNeighbours(currentNode)
 
             for neighbour in neighbours:
                 if not neighbour.walkable or neighbour in self.closedSet:
                     continue
-                    
+
                 newDstToNeighbour = currentNode.gCost +  self.grid.getDistance(currentNode, neighbour)
                 if newDstToNeighbour < neighbour.gCost or neighbour not in self.openSet:
                     neighbour.gCost = newDstToNeighbour
@@ -57,10 +87,11 @@ class Finder:
                     if neighbour not in self.openSet:
                         self.openSet.append(neighbour)
                 neighbour.color = RED
-                sleep(0.01)
+                if animate:
+                    sleep(0.01)
         print("PATH NOT FOUND")
         return
-            
+
 
 def main():
     WIDTH = 800
@@ -70,11 +101,11 @@ def main():
     screen.fill((WHITE))
     grid = Grid(40)
     finder = Finder(grid)
-
     running = True
     grid.initGrid()
-    findingPath = True
     foundPath = False
+
+
     while running:
         finder.grid.drawGrid()
         if not foundPath:
@@ -92,6 +123,7 @@ def main():
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         finder.reset()
+                        linePath = False
                         print("Grid cleaned")
                     if event.key == pygame.K_a:
                         finder.grid.getNeighbours(grid.startNode)
@@ -101,10 +133,13 @@ def main():
                         # print(grid.startNode.show())
                         # print("\nEND NODE")
                         # print(grid.endNode.show())
-                        t1 = threading.Thread(target=finder.findPath, daemon=True)
+                        t1 = threading.Thread(target=finder.findPath, args=(True,), daemon=True)
                         t1.start()
                         foundPath = True
         else:
+            if finder.path:
+                finder.drawLine(screen, finder.grid.startNode)
+                linePath = True
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -113,6 +148,7 @@ def main():
                         finder.reset()
                         print("Grid cleaned")
                         foundPath = False
+                        linePath = False
 
         clock.tick(60)
 

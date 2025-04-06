@@ -3,8 +3,8 @@ from node import Node
 from colors import *
 import math
 from time import sleep
-
-
+from scipy.interpolate import CubicSpline
+import numpy as np
 WIDTH = 800
 pygame.init()
 screen = pygame.display.set_mode((WIDTH,WIDTH))
@@ -55,6 +55,7 @@ class Grid:
             if node.isNode(x, y):
                 return node
         print("\n\nNothing found")
+        
     def changeCell(self, pos, color):
         x = int(pos[0]/self.blocksize)
         y = int(pos[1]/self.blocksize)
@@ -106,12 +107,10 @@ class Grid:
             return 14*dstY + 10 * (dstX - dstY)    
         return 14*dstX + 10 * (dstY - dstX) 
 
+
     def createPath(self,startNode, endNode):
         path = []
         currentNode = endNode
-
-        startNode.show()
-        endNode.show()
 
         while currentNode is not startNode:
             path.append(currentNode)
